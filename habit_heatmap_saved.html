@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hábitos 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DM+Sans:wght@300;400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#fff0f5;--surface:#fff5f8;--text:#5c2d3e;--muted:#c490a0;--border:#f5c0d0;
+  --p0:#fff0f5;--p1:#ffc8dc;--p2:#ff91b5;--p3:#e8528a;--p4:#9c2060;
+  --accent:#d4437a;--pixel:2px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);padding:20px 16px;min-height:100vh;}
+
+.pixel-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--accent);text-align:center;margin-bottom:4px;line-height:1.6;}
+.sub{text-align:center;font-size:11px;color:var(--muted);margin-bottom:16px;}
+
+/* LOADING */
+.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px;}
+.loading-screen.hidden{display:none;}
+.loading-text{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--accent);}
+.loading-dots{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--p2);animation:blink 1s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* SAVE STATUS */
+.save-status{
+  position:fixed;top:12px;right:12px;
+  font-family:'Press Start 2P',monospace;font-size:7px;
+  padding:6px 10px;
+  border-bottom:3px solid;border-right:3px solid;
+  z-index:100;
+  display:none;
+}
+.save-status.saving{background:#fff9c4;color:#795548;border-color:#f9a825;display:block;}
+.save-status.saved{background:#e8f5e9;color:#2e7d32;border-color:#388e3c;display:block;}
+.save-status.error{background:#fce4ec;color:#880e4f;border-color:#c2185b;display:block;}
+
+.year-stats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:18px;}
+.stat-card{background:var(--surface);border:var(--pixel) solid var(--p2);border-bottom:4px solid var(--p3);border-right:4px solid var(--p3);padding:10px 14px;text-align:center;min-width:80px;}
+.stat-number{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--accent);}
+.stat-label{font-size:9px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;}
+
+.calendar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.month-block{background:var(--surface);border:var(--pixel) solid var(--border);border-bottom:4px solid var(--p2);border-right:4px solid var(--p2);padding:10px 8px 8px;}
+.month-label{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--accent);margin-bottom:6px;display:block;text-align:center;}
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:3px;}
+.wd{font-size:7px;color:var(--muted);text-align:center;font-weight:500;}
+.days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.day-cell{aspect-ratio:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:7px;font-family:'Press Start 2P',monospace;color:transparent;position:relative;transition:transform .1s;}
+.day-cell:hover{transform:scale(1.25);z-index:10;color:white;}
+.day-cell.l0{background:var(--p0);border:1px solid var(--border);}
+.day-cell.l1{background:var(--p1);}
+.day-cell.l2{background:var(--p2);}
+.day-cell.l3{background:var(--p3);}
+.day-cell.l4{background:var(--p4);}
+.day-cell.future{background:#f9f0f4;border:1px dashed var(--border);cursor:default;}
+.day-cell.future:hover{transform:none;color:transparent;}
+.day-cell.today{outline:2px solid var(--accent);outline-offset:1px;}
+.day-cell.empty{background:transparent;border:none;cursor:default;}
+.day-cell.empty:hover{transform:none;}
+
+.legend{display:flex;align-items:center;gap:4px;justify-content:center;margin-bottom:16px;}
+.legend span{font-size:9px;color:var(--muted);}
+.leg-cell{width:12px;height:12px;}
+
+.panel{background:var(--surface);border:var(--pixel) solid var(--border);border-bottom:4px solid var(--p2);border-right:4px solid var(--p2);padding:14px;}
+.panel-head{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--accent);margin-bottom:2px;}
+.panel-date{font-size:10px;color:var(--muted);margin-bottom:12px;}
+.habits-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.habit-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:var(--pixel) solid var(--border);cursor:pointer;transition:all .15s;background:var(--bg);}
+.habit-item:hover{border-color:var(--p2);background:#fff0f7;}
+.habit-item.checked{background:#ffe4ef;border-color:var(--p2);}
+.habit-check{width:16px;height:16px;border:var(--pixel) solid var(--muted);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:white;}
+.habit-item.checked .habit-check{background:var(--accent);border-color:var(--accent);}
+.habit-check svg{display:none;}
+.habit-item.checked .habit-check svg{display:block;}
+.habit-name{font-size:11px;flex:1;color:var(--text);}
+.habit-time{font-size:9px;color:var(--muted);background:var(--p0);border:1px solid var(--border);padding:2px 6px;}
+
+.prog-wrap{background:var(--p0);border:var(--pixel) solid var(--border);height:12px;margin-bottom:4px;}
+.prog-fill{height:100%;background:var(--p3);transition:width .3s;}
+.prog-text{font-size:9px;color:var(--muted);text-align:right;margin-bottom:10px;}
+
+.save-btn{width:100%;padding:10px;background:var(--accent);color:white;border:none;border-bottom:4px solid #9c2060;border-right:4px solid #9c2060;font-family:'Press Start 2P',monospace;font-size:9px;cursor:pointer;transition:all .1s;}
+.save-btn:hover{background:#c23870;}
+.save-btn:active{border-bottom:var(--pixel) solid #9c2060;border-right:var(--pixel) solid #9c2060;transform:translate(2px,2px);}
+.save-btn:disabled{background:#c490a0;cursor:not-allowed;border-bottom:4px solid #a07080;border-right:4px solid #a07080;}
+
+.tooltip{position:fixed;background:var(--text);color:white;padding:5px 8px;font-size:8px;font-family:'Press Start 2P',monospace;pointer-events:none;z-index:100;display:none;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-text">✿ cargando hábitos ✿</div>
+  <div class="loading-dots">♡ ♡ ♡</div>
+</div>
+
+<!-- SAVE STATUS -->
+<div class="save-status" id="saveStatus"></div>
+
+<div class="pixel-title">✿ Mis Hábitos · 2026 ✿</div>
+<div class="sub">tracker ♡</div>
+
+<div class="year-stats" id="yearStats"></div>
+<div class="calendar-grid" id="calendarGrid"></div>
+
+<div class="legend">
+  <span>poquito</span>
+  <div class="leg-cell" style="background:var(--p0);border:1px solid var(--border)"></div>
+  <div class="leg-cell" style="background:var(--p1)"></div>
+  <div class="leg-cell" style="background:var(--p2)"></div>
+  <div class="leg-cell" style="background:var(--p3)"></div>
+  <div class="leg-cell" style="background:var(--p4)"></div>
+  <span>mucho ♡</span>
+</div>
+
+<div class="panel">
+  <div class="panel-head" id="panelTitle">Hoy</div>
+  <div class="panel-date" id="panelDate"></div>
+  <div class="habits-list" id="habitsList"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="prog-text" id="progressText">0 de 12 · 0%</div>
+  <button class="save-btn" id="saveBtn" onclick="saveDay()">[ Guardar día ♡ ]</button>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────
+const BIN_ID = '6a239464da38895dfe8f81ab';
+const API_KEY = '$2a$10$NUUxe3GfHJ5sr0N6bqqPlu4NovpbsZyH5jASVDm5iO.5Lv7lgadR.';
+const BASE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+// ─── HÁBITOS ──────────────────────────────────────────
+const HABITS = [
+  {id:'cama',      name:'Hacer cama',       time:'mañana'},
+  {id:'desayuno',  name:'Desayunar',         time:'mañana'},
+  {id:'metil_am',  name:'Metilfenidato AM',  time:'mañana'},
+  {id:'skincare_am',name:'Skincare AM',      time:'mañana'},
+  {id:'almuerzo',  name:'Almuerzo',          time:'mediodía'},
+  {id:'metil_pm',  name:'Metilfenidato PM',  time:'tarde'},
+  {id:'ejercicio', name:'Ejercicio',         time:'tarde'},
+  {id:'maleta',    name:'Preparar maleta',   time:'tarde'},
+  {id:'cena',      name:'Cena',              time:'noche'},
+  {id:'brintellix',name:'Brintellix PM',     time:'noche'},
+  {id:'ducha',     name:'Ducha',             time:'noche'},
+  {id:'skincare_pm',name:'Skincare PM',      time:'noche'},
+];
+
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTH_SHORT = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
+const WD = ['D','L','M','X','J','V','S'];
+
+let data = {};
+let selectedDate = todayStr();
+let currentChecked = [];
+let isSaving = false;
+
+// ─── DATE HELPERS ─────────────────────────────────────
+function todayStr() {
+  const d = new Date();
+  return `2026-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function dateStr(m, d) {
+  return `2026-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function getLevel(c) { return c===0?0:c<=3?1:c<=6?2:c<=9?3:4; }
+function isFuture(m, d) { return new Date(2026,m,d) > new Date(); }
+function isToday(m, d) { return dateStr(m,d) === todayStr(); }
+
+// ─── JSONBIN API ──────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch(`${BASE_URL}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    if (!res.ok) throw new Error('Load failed');
+    const json = await res.json();
+    data = json.record || {};
+  } catch(e) {
+    console.error('Load error:', e);
+    // fallback to localStorage if offline
+    try { data = JSON.parse(localStorage.getItem('habits_2026_backup') || '{}'); } catch(_) {}
+  }
+}
+
+async function saveData() {
+  if (isSaving) return;
+  isSaving = true;
+  showStatus('saving', '[ guardando... ]');
+  document.getElementById('saveBtn').disabled = true;
+
+  try {
+    const res = await fetch(BASE_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Save failed');
+    // backup to localStorage
+    try { localStorage.setItem('habits_2026_backup', JSON.stringify(data)); } catch(_) {}
+    showStatus('saved', '[ ✓ guardado! ]');
+  } catch(e) {
+    console.error('Save error:', e);
+    showStatus('error', '[ error :( ]');
+  } finally {
+    isSaving = false;
+    document.getElementById('saveBtn').disabled = false;
+    setTimeout(() => hideStatus(), 2000);
+  }
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('saveStatus');
+  el.className = `save-status ${type}`;
+  el.textContent = msg;
+}
+function hideStatus() {
+  document.getElementById('saveStatus').className = 'save-status';
+}
+
+// ─── CALENDAR ─────────────────────────────────────────
+function buildCalendar() {
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+  for (let m = 0; m < 12; m++) {
+    const block = document.createElement('div');
+    block.className = 'month-block';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'month-label';
+    lbl.textContent = MONTH_SHORT[m];
+    block.appendChild(lbl);
+
+    const wdRow = document.createElement('div');
+    wdRow.className = 'weekdays';
+    WD.forEach(w => {
+      const wd = document.createElement('div');
+      wd.className = 'wd';
+      wd.textContent = w;
+      wdRow.appendChild(wd);
+    });
+    block.appendChild(wdRow);
+
+    const daysDiv = document.createElement('div');
+    daysDiv.className = 'days-grid';
+
+    const firstDay = new Date(2026, m, 1).getDay();
+    for (let e = 0; e < firstDay; e++) {
+      const empty = document.createElement('div');
+      empty.className = 'day-cell empty';
+      daysDiv.appendChild(empty);
+    }
+
+    for (let d = 1; d <= MONTH_DAYS[m]; d++) {
+      const cell = document.createElement('div');
+      const ds = dateStr(m, d);
+      const count = data[ds] ? data[ds].length : 0;
+      if (isFuture(m, d)) {
+        cell.className = 'day-cell future';
+      } else {
+        cell.className = `day-cell l${getLevel(count)}`;
+        if (isToday(m, d)) cell.classList.add('today');
+        cell.textContent = d;
+        cell.addEventListener('click', () => selectDate(ds, m, d));
+        cell.addEventListener('mouseenter', e => showTip(e, m, d, count));
+        cell.addEventListener('mouseleave', hideTip);
+      }
+      daysDiv.appendChild(cell);
+    }
+    block.appendChild(daysDiv);
+    grid.appendChild(block);
+  }
+}
+
+function showTip(e, m, d, count) {
+  const t = document.getElementById('tooltip');
+  t.style.display = 'block';
+  t.style.left = (e.clientX + 12) + 'px';
+  t.style.top = (e.clientY - 30) + 'px';
+  t.textContent = `${d} ${MONTHS[m]} · ${count}/${HABITS.length}`;
+}
+function hideTip() { document.getElementById('tooltip').style.display = 'none'; }
+
+// ─── PANEL ────────────────────────────────────────────
+function selectDate(ds, m, d) {
+  selectedDate = ds;
+  currentChecked = data[ds] ? [...data[ds]] : [];
+  renderPanel(m, d);
+}
+
+function renderPanel(m, d) {
+  document.getElementById('panelTitle').textContent = `${d} de ${MONTHS[m]}`;
+  document.getElementById('panelDate').textContent = selectedDate === todayStr() ? '· hoy ♡' : '';
+  const list = document.getElementById('habitsList');
+  list.innerHTML = '';
+  HABITS.forEach(h => {
+    const item = document.createElement('div');
+    item.className = 'habit-item' + (currentChecked.includes(h.id) ? ' checked' : '');
+    item.innerHTML = `
+      <div class="habit-check">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M2 5l2.5 2.5 4-4" stroke="white" stroke-width="2" stroke-linecap="square"/>
+        </svg>
+      </div>
+      <span class="habit-name">${h.name}</span>
+      <span class="habit-time">${h.time}</span>
+    `;
+    item.addEventListener('click', () => toggleHabit(h.id, item));
+    list.appendChild(item);
+  });
+  updateProgress();
+}
+
+function toggleHabit(id, el) {
+  if (currentChecked.includes(id)) {
+    currentChecked = currentChecked.filter(h => h !== id);
+    el.classList.remove('checked');
+  } else {
+    currentChecked.push(id);
+    el.classList.add('checked');
+  }
+  updateProgress();
+}
+
+function updateProgress() {
+  const pct = Math.round((currentChecked.length / HABITS.length) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${currentChecked.length} de ${HABITS.length} hábitos · ${pct}%`;
+}
+
+// ─── SAVE DAY ─────────────────────────────────────────
+async function saveDay() {
+  data[selectedDate] = [...currentChecked];
+  await saveData();
+  buildCalendar();
+  updateYearStats();
+}
+
+// ─── STATS ────────────────────────────────────────────
+function updateYearStats() {
+  const days = Object.keys(data).filter(d => d.startsWith('2026'));
+  const total = days.length;
+  const checks = days.reduce((s, d) => s + data[d].length, 0);
+  const perfect = days.filter(d => data[d].length === HABITS.length).length;
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const ds = `2026-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (data[ds] && data[ds].length > 0) streak++;
+    else if (i > 0) break;
+  }
+  document.getElementById('yearStats').innerHTML = `
+    <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">días reg.</div></div>
+    <div class="stat-card"><div class="stat-number">${perfect}</div><div class="stat-label">perfectos</div></div>
+    <div class="stat-card"><div class="stat-number">${streak}</div><div class="stat-label">racha ♡</div></div>
+    <div class="stat-card"><div class="stat-number">${total > 0 ? Math.round(checks/total) : 0}</div><div class="stat-label">hab/día</div></div>
+  `;
+}
+
+// ─── INIT ─────────────────────────────────────────────
+async function init() {
+  await loadData();
+  document.getElementById('loadingScreen').classList.add('hidden');
+  buildCalendar();
+  updateYearStats();
+  const today = new Date();
+  selectDate(todayStr(), today.getMonth(), today.getDate());
+}
+
+init();
+</script>
+</body>
+</html>
